@@ -46,7 +46,7 @@
           <div class="form-actions mt-lg">
             <button
               type="submit"
-              class="btn btn-primary"
+              class="btn btn-secondary"
               :disabled="saving || !form.professorId"
             >
               {{ saving ? "Salvando..." : "Vincular Professor" }}

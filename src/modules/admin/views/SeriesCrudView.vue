@@ -10,7 +10,7 @@
         <span class="material-icons-outlined icon">search</span>
         <input v-model="search" placeholder="Buscar série..." />
       </div>
-      <button class="btn btn-primary" @click="openModal(null)">
+      <button class="btn btn-secondary" @click="openModal(null)">
         <span class="material-icons-outlined" style="font-size: 18px">add</span>
         Nova Série
       </button>

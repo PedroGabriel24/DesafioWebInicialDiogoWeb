@@ -98,9 +98,9 @@
             <label class="form-label">Tipo de observação</label>
             <select class="form-select w-full" v-model="modalForm.status">
               <option value="" disabled>selecionar tipo</option>
-              <option value="positivo">Positivo</option>
-              <option value="negativo">Negativo</option>
-              <option value="neutro">Neutro</option>
+              <option value="positiva">Positiva</option>
+              <option value="negativa">Negativa</option>
+              <option value="neutra">Neutra</option>
             </select>
           </div>
           <div class="form-group mt-md">

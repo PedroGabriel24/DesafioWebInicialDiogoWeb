@@ -10,7 +10,7 @@
         <span class="material-icons-outlined icon">search</span>
         <input v-model="search" placeholder="Buscar por nome ou email..." />
       </div>
-      <router-link to="/admin/usuarios/criar" class="btn btn-primary">
+      <router-link to="/admin/usuarios/criar" class="btn btn-secondary">
         <span class="material-icons-outlined" style="font-size: 18px"
           >person_add</span
         >
