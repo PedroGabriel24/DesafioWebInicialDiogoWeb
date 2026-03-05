@@ -7,7 +7,7 @@
         </div>
         <div class="login-welcome">
           <h1>Bem vindo de volta!</h1>
-          <p class="login-brand">Plataforma DiogoWeb</p>
+          <p class="login-brand">Plataforma Instituto J&F</p>
           <p class="login-sub">
             Faça login para acessar suas<br />informações escolares
           </p>
