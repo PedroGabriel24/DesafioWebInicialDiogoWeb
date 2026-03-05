@@ -96,12 +96,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: "",
         name: "AlunoDashboard",
-        component: () => import("@/modules/aluno/views/MateriasView.vue"),
-      },
-      {
-        path: "boletim",
-        name: "AlunoBoletim",
-        component: () => import("@/modules/aluno/views/BoletimView.vue"),
+        component: () => import("@/modules/aluno/views/DashboardView.vue"),
       },
       {
         path: "observacoes",

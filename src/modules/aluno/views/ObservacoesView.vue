@@ -11,17 +11,17 @@
     <div class="stats-row mt-lg">
       <StatsCard
         label="POSITIVAS"
-        :value="countByStatus('positivo')"
+        :value="countByStatus('positiva') + countByStatus('positivo')"
         color="var(--success)"
       />
       <StatsCard
         label="NEGATIVAS"
-        :value="countByStatus('negativo')"
+        :value="countByStatus('negativo') + countByStatus('negativa')"
         color="var(--danger)"
       />
       <StatsCard
         label="NEUTRAS"
-        :value="countByStatus('neutro')"
+        :value="countByStatus('neutro') + countByStatus('neutra')"
         color="var(--text-secondary)"
       />
     </div>
@@ -56,9 +56,6 @@
             </div>
           </div>
           <p class="obs-msg mt-sm">{{ obs.mensagem }}</p>
-          <p class="obs-author text-sm text-secondary mt-xs">
-            Por: Professor(a) {{ obs.nome }}
-          </p>
         </div>
       </div>
 
@@ -93,8 +90,9 @@ function getInitial(nome: string): string {
 
 function statusBadge(status: string): string {
   const s = (status || "").toLowerCase();
-  if (s === "positivo") return "badge-success";
-  if (s === "negativo") return "badge-danger";
+  if (s === "positivo" || s === "positiva") return "badge-success";
+  if (s === "negativo" || s === "negativa") return "badge-danger";
+  if (s === "neutro" || s === "neutra") return "badge-neutral";
   return "badge-neutral";
 }
 
@@ -159,9 +157,6 @@ onMounted(async () => {
   font-size: 14px;
   line-height: 1.5;
   color: var(--text-dark);
-}
-.obs-author {
-  font-size: 12px;
 }
 
 @media (max-width: 768px) {

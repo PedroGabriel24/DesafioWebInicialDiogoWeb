@@ -106,7 +106,6 @@ const navItems = computed(() => {
     ALUNO: [
       { label: "Visão Geral", icon: "dashboard", to: "/aluno" },
       { label: "Observações", icon: "description", to: "/aluno/observacoes" },
-      { label: "Boletim", icon: "assessment", to: "/aluno/boletim" },
     ],
   };
   return map[authStore.userRole ?? ""] ?? [];
