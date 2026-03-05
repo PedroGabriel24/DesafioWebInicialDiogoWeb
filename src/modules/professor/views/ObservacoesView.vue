@@ -9,17 +9,19 @@
     </div>
 
     <div class="filters-row mt-lg">
-      <select class="form-select" v-model="filterDisciplina">
-        <option value="">Filtrar por disciplina</option>
-        <option v-for="d in disciplinas" :key="d.id" :value="d.id">
-          {{ d.nome }}
-        </option>
-      </select>
-      <select class="form-select" v-model="filterTurma">
-        <option value="">Filtrar por turma</option>
-        <option v-for="t in turmas" :key="t" :value="t">{{ t }}</option>
-      </select>
-      <button class="btn btn-primary" @click="showModal = true">
+      <div class="filters-row-selects">
+        <select class="form-select" v-model="filterDisciplina">
+          <option value="">Filtrar por disciplina</option>
+          <option v-for="d in disciplinas" :key="d.id" :value="d.id">
+            {{ d.nome }}
+          </option>
+        </select>
+        <select class="form-select" v-model="filterTurma">
+          <option value="">Filtrar por turma</option>
+          <option v-for="t in turmas" :key="t" :value="t">{{ t }}</option>
+        </select>
+      </div>
+      <button class="btn btn-secondary" @click="showModal = true">
         <span class="material-icons-outlined" style="font-size: 18px">add</span>
         Adicionar Observação
       </button>
@@ -245,8 +247,7 @@ onMounted(async () => {
               });
             }
           }
-        } catch {
-        }
+        } catch {}
       }
       alunosList.value = allAlunos;
       turmas.value = Array.from(turmaSet).sort();
@@ -282,12 +283,18 @@ async function submitObservacao() {
 <style scoped>
 .filters-row {
   display: flex;
+  justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
   align-items: center;
 }
 .filters-row .form-select {
   min-width: 200px;
+}
+.filters-row-selects {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 .obs-list {
   display: flex;

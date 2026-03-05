@@ -2,7 +2,7 @@
   <div>
     <div class="page-banner">
       <h1>Lançamento de Notas!</h1>
-      <p>Selecione a disciplina para lançar as notas dos alunos.</p>
+      <p>Selecione uma turma e disciplina para <strong>lançar as notas dos alunos.</strong></p>
     </div>
 
     <div class="filters-row mt-lg">
@@ -16,6 +16,12 @@
           {{ d.nome }}
         </option>
       </select>
+      <select class="form-select" v-model="selectedTurma" @change="loadTurmas">
+        <option value="">Filtrar por turma</option>
+        <option v-for="t in turmas" :key="t.id" :value="t.id">
+          {{ t.nome }}
+        </option>
+      </select>
     </div>
 
     <LoadingSpinner v-if="loading" message="Carregando dados..." />
@@ -23,7 +29,7 @@
 
     <div v-else class="mt-lg">
       <p v-if="!selectedDisciplina" class="text-secondary text-center mt-md">
-        Selecione uma disciplina para visualizar os alunos.
+        Selecione uma turma e disciplina para lançar as notas dos alunos.
       </p>
 
       <div v-else-if="alunosNotas.length" class="table-wrapper">
@@ -34,7 +40,7 @@
               <th>1º SEM</th>
               <th>2º SEM</th>
               <th>MÉDIA</th>
-              <th>VERIFICAÇÃO</th>
+              <th>STATUS</th>
               <th>AÇÃO</th>
             </tr>
           </thead>
@@ -57,7 +63,7 @@
                   min="0"
                   max="10"
                   class="nota-input"
-                  @input="updateMedia(a)"
+                  @input="onNotaInput($event, a, 1)"
                 />
                 <span v-else>{{ a.nota1 != null ? a.nota1 : "-" }}</span>
               </td>
@@ -70,7 +76,7 @@
                   min="0"
                   max="10"
                   class="nota-input"
-                  @input="updateMedia(a)"
+                  @input="onNotaInput($event, a, 2)"
                 />
                 <span v-else>{{ a.nota2 != null ? a.nota2 : "-" }}</span>
               </td>
@@ -126,6 +132,7 @@ const toast = useToastStore();
 const loading = ref(true);
 const loadingAlunos = ref(false);
 const selectedDisciplina = ref("");
+const selectedTurma = ref("");
 
 interface AlunoNota {
   id: number;
@@ -139,6 +146,7 @@ interface AlunoNota {
 }
 
 const disciplinas = ref<{ id: number; nome: string }[]>([]);
+const turmas = ref<{ id: number; nome: string }[]>([]);
 const alunosNotas = ref<AlunoNota[]>([]);
 
 function calcMedia(n1: number | null, n2: number | null): string {
@@ -153,6 +161,24 @@ function updateMedia(a: AlunoNota) {
   a.media = calcMedia(a.nota1, a.nota2);
 }
 
+function onNotaInput(event: Event, a: AlunoNota, semestre: number) {
+  const input = event.target as HTMLInputElement;
+  const value = parseFloat(input.value);
+
+  if (isNaN(value) || input.value === "") {
+    if (semestre === 1) a.nota1 = null;
+    else a.nota2 = null;
+  } else if (value < 0) {
+    if (semestre === 1) a.nota1 = 0;
+    else a.nota2 = 0;
+  } else if (value > 10) {
+    if (semestre === 1) a.nota1 = 10;
+    else a.nota2 = 10;
+  }
+
+  updateMedia(a);
+}
+
 onMounted(async () => {
   try {
     const data = await professorService.getDashboard();
@@ -161,10 +187,23 @@ onMounted(async () => {
         id: m.materiaId ?? i + 1,
         nome: m.nome ?? "",
       }));
-      if (disciplinas.value.length === 1) {
-        selectedDisciplina.value = String(disciplinas.value[0].id);
-        await loadAlunos();
+
+      const turmaSet = new Set<string>();
+      for (const d of disciplinas.value) {
+        try {
+          const alunosData = await professorService.getAlunosPorMateria(d.id);
+          const list = Array.isArray(alunosData)
+            ? alunosData
+            : (alunosData.alunos ?? []);
+          for (const a of list) {
+            const turma = a.turma ?? a.serie ?? "";
+            if (turma) turmaSet.add(turma);
+          }
+        } catch {}
       }
+      turmas.value = Array.from(turmaSet)
+        .sort()
+        .map((nome, i) => ({ id: i + 1, nome }));
     }
   } catch (err: any) {
     if (err.response?.status !== 401)
@@ -179,6 +218,7 @@ async function loadAlunos() {
     alunosNotas.value = [];
     return;
   }
+  selectedTurma.value = "";
   loadingAlunos.value = true;
   try {
     const data = await professorService.getAlunosPorMateria(

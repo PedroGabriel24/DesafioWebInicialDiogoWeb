@@ -12,6 +12,12 @@
           {{ d.nome }}
         </option>
       </select>
+      <select class="form-select" v-model="selectedTurma" @change="loadTurmas">
+        <option value="">Filtrar por turma</option>
+        <option v-for="t in turmas" :key="t.id" :value="t.id">
+          {{ t.nome }}
+        </option>
+      </select>
     </div>
 
     <div class="stats-row mt-lg">
@@ -82,6 +88,7 @@ const authStore = useAuthStore();
 const toast = useToastStore();
 const loadingAlunos = ref(false);
 const selectedDisciplina = ref("");
+const selectedTurma = ref("");
 const stats = ref({ totalAlunos: 0, mediaTurma: "0.0", pendencias: 0 });
 
 interface SimpleItem {
@@ -96,6 +103,7 @@ interface Aluno {
 }
 
 const disciplinas = ref<SimpleItem[]>([]);
+const turmas = ref<SimpleItem[]>([]);
 const alunos = ref<Aluno[]>([]);
 
 onMounted(async () => {
@@ -135,8 +143,7 @@ onMounted(async () => {
             if (n1 === null || n1 === "") pend++;
             if (n2 === null || n2 === "") pend++;
           }
-        } catch {
-        }
+        } catch {}
       }
 
       stats.value = {
@@ -147,8 +154,22 @@ onMounted(async () => {
         pendencias: pend,
       };
 
-      if (disciplinas.value.length)
-        selectedDisciplina.value = String(disciplinas.value[0].id);
+      const turmaSet = new Set<string>();
+      for (const d of disciplinas.value) {
+        try {
+          const alunosData = await professorService.getAlunosPorMateria(d.id);
+          const list = Array.isArray(alunosData)
+            ? alunosData
+            : (alunosData.alunos ?? []);
+          for (const a of list) {
+            const turma = a.turma ?? a.serie ?? "";
+            if (turma) turmaSet.add(turma);
+          }
+        } catch {}
+      }
+      turmas.value = Array.from(turmaSet)
+        .sort()
+        .map((nome, i) => ({ id: i + 1, nome }));
     }
   } catch (err: any) {
     if (err.response?.status !== 401) toast.error("Erro ao carregar dashboard");
@@ -156,6 +177,7 @@ onMounted(async () => {
 });
 
 watch(selectedDisciplina, async (val) => {
+  selectedTurma.value = "";
   if (!val) {
     alunos.value = [];
     return;
@@ -165,6 +187,35 @@ watch(selectedDisciplina, async (val) => {
     const data = await professorService.getAlunosPorMateria(Number(val));
     const list = Array.isArray(data) ? data : (data.alunos ?? []);
     alunos.value = list.map((a: any, i: number) => ({
+      id: a.id ?? i + 1,
+      nome: a.nome ?? a.name ?? "",
+      matricula: a.matricula ?? "",
+      turma: a.turma ?? a.serie ?? "",
+    }));
+  } catch {
+    alunos.value = [];
+  } finally {
+    loadingAlunos.value = false;
+  }
+});
+
+watch(selectedTurma, async (val) => {
+  loadingAlunos.value = true;
+  try {
+    const disciplinaId = Number(selectedDisciplina.value);
+    if (!disciplinaId) {
+      alunos.value = [];
+      return;
+    }
+
+    const data = await professorService.getAlunosPorMateria(disciplinaId);
+    const list = Array.isArray(data) ? data : (data.alunos ?? []);
+    const filtered = val
+      ? list.filter(
+          (a: any) => (a.turma ?? a.serie ?? "") === val
+        )
+      : list;
+    alunos.value = filtered.map((a: any, i: number) => ({
       id: a.id ?? i + 1,
       nome: a.nome ?? a.name ?? "",
       matricula: a.matricula ?? "",

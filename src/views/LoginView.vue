@@ -90,11 +90,15 @@ const loading = ref(false);
 const errorMsg = ref("");
 
 async function handleLogin() {
-  if (!email.value || !senha.value) return;
+  const trimmedEmail = email.value.trim();
+  const trimmedSenha = senha.value.trim();
+
+  if (!trimmedEmail || !trimmedSenha) return;
+
   loading.value = true;
   errorMsg.value = "";
   try {
-    await authStore.login(email.value, senha.value);
+    await authStore.login(trimmedEmail, trimmedSenha);
     toast.success("Login realizado com sucesso!");
   } catch (err: any) {
     const msg =
