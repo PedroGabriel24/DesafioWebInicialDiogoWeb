@@ -12,9 +12,9 @@
           {{ d.nome }}
         </option>
       </select>
-      <select class="form-select" v-model="selectedTurma" @change="loadTurmas">
+      <select class="form-select" v-model="selectedTurma">
         <option value="">Filtrar por turma</option>
-        <option v-for="t in turmas" :key="t.id" :value="t.id">
+        <option v-for="t in turmas" :key="t.id" :value="t.nome">
           {{ t.nome }}
         </option>
       </select>
@@ -109,13 +109,32 @@ const alunos = ref<Aluno[]>([]);
 onMounted(async () => {
   try {
     const data = await professorService.getDashboard();
+
+    const extras = authStore.decoded?.payload?.extras || [];
+    const materiaMap = new Map<number, string>();
+    const serieSet = new Set<string>();
+
+    for (const e of extras) {
+      if (e.materiaId && e.materia) {
+        materiaMap.set(Number(e.materiaId), e.materia);
+      }
+      if (e.serie) {
+        serieSet.add(e.serie);
+      }
+    }
+
+    disciplinas.value = Array.from(materiaMap.entries()).map(([id, nome]) => ({
+      id,
+      nome,
+    }));
+
+    turmas.value = Array.from(serieSet).sort().map((nome, i) => ({
+      id: i + 1,
+      nome,
+    }));
+
     if (data.materias && Array.isArray(data.materias)) {
       const materias = data.materias as any[];
-      disciplinas.value = materias.map((m: any, i: number) => ({
-        id: m.materiaId ?? i + 1,
-        nome: m.nome ?? "",
-      }));
-
       let total = 0,
         soma = 0,
         pend = 0;
@@ -153,23 +172,6 @@ onMounted(async () => {
           : "0.0",
         pendencias: pend,
       };
-
-      const turmaSet = new Set<string>();
-      for (const d of disciplinas.value) {
-        try {
-          const alunosData = await professorService.getAlunosPorMateria(d.id);
-          const list = Array.isArray(alunosData)
-            ? alunosData
-            : (alunosData.alunos ?? []);
-          for (const a of list) {
-            const turma = a.turma ?? a.serie ?? "";
-            if (turma) turmaSet.add(turma);
-          }
-        } catch {}
-      }
-      turmas.value = Array.from(turmaSet)
-        .sort()
-        .map((nome, i) => ({ id: i + 1, nome }));
     }
   } catch (err: any) {
     if (err.response?.status !== 401) toast.error("Erro ao carregar dashboard");

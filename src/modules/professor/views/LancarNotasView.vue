@@ -16,7 +16,7 @@
           {{ d.nome }}
         </option>
       </select>
-      <select class="form-select" v-model="selectedTurma" @change="loadTurmas">
+      <select class="form-select" v-model="selectedTurma">
         <option value="">Filtrar por turma</option>
         <option v-for="t in turmas" :key="t.id" :value="t.id">
           {{ t.nome }}
@@ -125,10 +125,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useToastStore } from "@/stores/toast.store";
+import { useAuthStore } from "@/stores/auth.store";
 import { professorService } from "@/api/services/professor.service";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 
 const toast = useToastStore();
+const authStore = useAuthStore();
 const loading = ref(true);
 const loadingAlunos = ref(false);
 const selectedDisciplina = ref("");
@@ -180,37 +182,28 @@ function onNotaInput(event: Event, a: AlunoNota, semestre: number) {
 }
 
 onMounted(async () => {
-  try {
-    const data = await professorService.getDashboard();
-    if (data.materias && Array.isArray(data.materias)) {
-      disciplinas.value = data.materias.map((m: any, i: number) => ({
-        id: m.materiaId ?? i + 1,
-        nome: m.nome ?? "",
-      }));
+  const extras = authStore.decoded?.payload?.extras || [];
+  const materiaMap = new Map<number, string>();
+  const serieSet = new Set<string>();
 
-      const turmaSet = new Set<string>();
-      for (const d of disciplinas.value) {
-        try {
-          const alunosData = await professorService.getAlunosPorMateria(d.id);
-          const list = Array.isArray(alunosData)
-            ? alunosData
-            : (alunosData.alunos ?? []);
-          for (const a of list) {
-            const turma = a.turma ?? a.serie ?? "";
-            if (turma) turmaSet.add(turma);
-          }
-        } catch {}
-      }
-      turmas.value = Array.from(turmaSet)
-        .sort()
-        .map((nome, i) => ({ id: i + 1, nome }));
+  for (const e of extras) {
+    if (e.materiaId && e.materia) {
+      materiaMap.set(Number(e.materiaId), e.materia);
     }
-  } catch (err: any) {
-    if (err.response?.status !== 401)
-      toast.error("Erro ao carregar disciplinas");
-  } finally {
-    loading.value = false;
+    if (e.serie) {
+      serieSet.add(e.serie);
+    }
   }
+
+  disciplinas.value = Array.from(materiaMap.entries()).map(([id, nome]) => ({
+    id,
+    nome,
+  }));
+
+  turmas.value = Array.from(serieSet).sort().map((nome, i) => ({
+    id: i + 1,
+    nome,
+  }));
 });
 
 async function loadAlunos() {

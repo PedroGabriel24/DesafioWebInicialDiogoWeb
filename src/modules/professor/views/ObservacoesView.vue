@@ -9,17 +9,14 @@
     </div>
 
     <div class="filters-row mt-lg">
-      <div class="filters-row-selects">
-        <select class="form-select" v-model="filterDisciplina">
-          <option value="">Filtrar por disciplina</option>
-          <option v-for="d in disciplinas" :key="d.id" :value="d.id">
-            {{ d.nome }}
-          </option>
-        </select>
-        <select class="form-select" v-model="filterTurma">
-          <option value="">Filtrar por turma</option>
-          <option v-for="t in turmas" :key="t" :value="t">{{ t }}</option>
-        </select>
+      <div class="actions-row">
+        <input
+          type="text"
+          class="form-input search-box"
+          style="padding-right: 50px"
+          placeholder="Buscar por nome do aluno..."
+          v-model="searchNome"
+        />
       </div>
       <button class="btn btn-secondary" @click="showModal = true">
         <span class="material-icons-outlined" style="font-size: 18px">add</span>
@@ -86,21 +83,12 @@
             </select>
           </div>
           <div class="form-group mt-md">
-            <label class="form-label">Selecione a disciplina</label>
-            <select class="form-select w-full" v-model="modalForm.disciplina">
-              <option value="" disabled>selecionar disciplina</option>
-              <option v-for="d in disciplinas" :key="d.id" :value="d.nome">
-                {{ d.nome }}
-              </option>
-            </select>
-          </div>
-          <div class="form-group mt-md">
             <label class="form-label">Tipo de observação</label>
             <select class="form-select w-full" v-model="modalForm.status">
               <option value="" disabled>selecionar tipo</option>
-              <option value="positiva">Positiva</option>
-              <option value="negativa">Negativa</option>
-              <option value="neutra">Neutra</option>
+              <option value="POSITIVA">Positiva</option>
+              <option value="NEGATIVA">Negativa</option>
+              <option value="NEUTRA">Neutra</option>
             </select>
           </div>
           <div class="form-group mt-md">
@@ -151,8 +139,7 @@ const toast = useToastStore();
 const loading = ref(true);
 const showModal = ref(false);
 const savingObs = ref(false);
-const filterDisciplina = ref("");
-const filterTurma = ref("");
+const searchNome = ref("");
 const observacoes = ref<ObservacoesResponse[]>([]);
 
 interface SimpleItem {
@@ -193,8 +180,8 @@ function getInitial(nome: string) {
 
 function statusBadge(status: string) {
   const s = (status || "").toLowerCase();
-  if (s === "positivo") return "badge-success";
-  if (s === "negativo") return "badge-danger";
+  if (s === "positiva") return "badge-success";
+  if (s === "negativa") return "badge-danger";
   return "badge-neutral";
 }
 
@@ -213,45 +200,62 @@ function formatDate(dateStr: string) {
 }
 
 const filteredObs = computed(() => {
-  return observacoes.value;
+  let filtered = observacoes.value;
+
+  if (searchNome.value.trim()) {
+    const search = searchNome.value.toLowerCase().trim();
+    filtered = filtered.filter(obs =>
+      obs.nome.toLowerCase().includes(search)
+    );
+  }
+
+  return filtered;
 });
 
 onMounted(async () => {
   try {
-    const [obsData, dashData] = await Promise.all([
-      professorService.listarObservacoes(),
-      professorService.getDashboard(),
-    ]);
+    const obsData = await professorService.listarObservacoes();
     observacoes.value = Array.isArray(obsData) ? obsData : [];
 
-    if (dashData.materias && Array.isArray(dashData.materias)) {
-      disciplinas.value = dashData.materias.map((m: any, i: number) => ({
-        id: m.materiaId ?? i + 1,
-        nome: m.nome ?? "",
-      }));
+    const extras = authStore.decoded?.payload?.extras || [];
+    const materiaMap = new Map<number, string>();
+    const serieSet = new Set<string>();
+    const allAlunos: AlunoItem[] = [];
 
-      const allAlunos: AlunoItem[] = [];
-      const turmaSet = new Set<string>();
-      for (const d of disciplinas.value) {
-        try {
-          const data = await professorService.getAlunosPorMateria(d.id);
-          const list = Array.isArray(data) ? data : (data.alunos ?? []);
-          for (const a of list) {
-            const turma = a.turma ?? a.serie ?? "";
-            if (turma) turmaSet.add(turma);
-            if (!allAlunos.find((x) => x.id === (a.id ?? a.alunoId))) {
-              allAlunos.push({
-                id: a.id ?? a.alunoId ?? 0,
-                nome: a.nome ?? a.name ?? a.alunoNome ?? "",
-                turma,
-              });
-            }
-          }
-        } catch {}
+    for (const e of extras) {
+      if (e.materiaId && e.materia) {
+        materiaMap.set(Number(e.materiaId), e.materia);
       }
-      alunosList.value = allAlunos;
-      turmas.value = Array.from(turmaSet).sort();
+      if (e.serie) {
+        serieSet.add(e.serie);
+      }
     }
+
+    disciplinas.value = Array.from(materiaMap.entries()).map(([id, nome]) => ({
+      id,
+      nome,
+    }));
+
+    turmas.value = Array.from(serieSet).sort();
+
+    // Carregar alunos de todas as matérias para a lista
+    for (const d of disciplinas.value) {
+      try {
+        const data = await professorService.getAlunosPorMateria(d.id);
+        const list = Array.isArray(data) ? data : (data.alunos ?? []);
+        for (const a of list) {
+          const turma = a.turma ?? a.serie ?? "";
+          if (!allAlunos.find((x) => x.id === (a.id ?? a.alunoId))) {
+            allAlunos.push({
+              id: a.id ?? a.alunoId ?? 0,
+              nome: a.nome ?? a.name ?? a.alunoNome ?? "",
+              turma,
+            });
+          }
+        }
+      } catch {}
+    }
+    alunosList.value = allAlunos;
   } catch {
     toast.error("Erro ao carregar observações");
   } finally {

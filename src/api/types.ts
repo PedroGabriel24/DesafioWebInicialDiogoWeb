@@ -118,6 +118,7 @@ export interface ObservacoesResponse {
   mensagem: string;
   status: string;
   data: string;
+  alunoId?: number;
 }
 
 export interface ObservacoesRequest {
@@ -129,6 +130,7 @@ export interface ObservacoesRequest {
 export interface JwtPayloadExtras {
   tipo: string;
   serie: string;
+  materiaId: string;
   materia: string;
 }
 export interface JwtPayloadInner {
