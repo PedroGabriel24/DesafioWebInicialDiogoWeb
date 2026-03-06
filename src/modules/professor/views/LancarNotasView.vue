@@ -18,7 +18,7 @@
       </select>
       <select class="form-select" v-model="selectedTurma">
         <option value="">Filtrar por turma</option>
-        <option v-for="t in turmas" :key="t.id" :value="t.id">
+        <option v-for="t in turmas" :key="t.id" :value="t.nome">
           {{ t.nome }}
         </option>
       </select>
@@ -123,7 +123,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useToastStore } from "@/stores/toast.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { professorService } from "@/api/services/professor.service";
@@ -145,11 +145,13 @@ interface AlunoNota {
   editing: boolean;
   saving: boolean;
   alunoSerieId: number;
+  turma: string;
 }
 
 const disciplinas = ref<{ id: number; nome: string }[]>([]);
 const turmas = ref<{ id: number; nome: string }[]>([]);
 const alunosNotas = ref<AlunoNota[]>([]);
+const alunosNotasCompletos = ref<AlunoNota[]>([]);
 
 function calcMedia(n1: number | null, n2: number | null): string {
   const v1 = n1 != null && !isNaN(n1) ? n1 : null;
@@ -182,33 +184,38 @@ function onNotaInput(event: Event, a: AlunoNota, semestre: number) {
 }
 
 onMounted(async () => {
-  const extras = authStore.decoded?.payload?.extras || [];
-  const materiaMap = new Map<number, string>();
-  const serieSet = new Set<string>();
+  try {
+    const extras = authStore.decoded?.payload?.extras || [];
+    const materiaMap = new Map<number, string>();
+    const serieSet = new Set<string>();
 
-  for (const e of extras) {
-    if (e.materiaId && e.materia) {
-      materiaMap.set(Number(e.materiaId), e.materia);
+    for (const e of extras) {
+      if (e.materiaId && e.materia) {
+        materiaMap.set(Number(e.materiaId), e.materia);
+      }
+      if (e.serie) {
+        serieSet.add(e.serie);
+      }
     }
-    if (e.serie) {
-      serieSet.add(e.serie);
-    }
+
+    disciplinas.value = Array.from(materiaMap.entries()).map(([id, nome]) => ({
+      id,
+      nome,
+    }));
+
+    turmas.value = Array.from(serieSet).sort().map((nome, i) => ({
+      id: i + 1,
+      nome,
+    }));
+  } finally {
+    loading.value = false;
   }
-
-  disciplinas.value = Array.from(materiaMap.entries()).map(([id, nome]) => ({
-    id,
-    nome,
-  }));
-
-  turmas.value = Array.from(serieSet).sort().map((nome, i) => ({
-    id: i + 1,
-    nome,
-  }));
 });
 
 async function loadAlunos() {
   if (!selectedDisciplina.value) {
     alunosNotas.value = [];
+    alunosNotasCompletos.value = [];
     return;
   }
   selectedTurma.value = "";
@@ -225,7 +232,7 @@ async function loadAlunos() {
       "[LancarNotas] Parsed list (first item):",
       list.length > 0 ? JSON.stringify(list[0]) : "empty",
     );
-    alunosNotas.value = list.map((a: any, i: number) => {
+    const parsedAlunos = list.map((a: any, i: number) => {
       const notas = a.notas ?? [];
       let n1 =
         notas.find((n: any) => n.periodoId === 1)?.nota ?? a.nota1 ?? null;
@@ -244,14 +251,28 @@ async function loadAlunos() {
         editing: false,
         saving: false,
         alunoSerieId: a.alunoSerieId ?? a.id ?? i + 1,
+        turma: a.turma ?? a.serie ?? "",
       };
     });
+    alunosNotasCompletos.value = parsedAlunos;
+    alunosNotas.value = parsedAlunos;
   } catch {
     alunosNotas.value = [];
+    alunosNotasCompletos.value = [];
   } finally {
     loadingAlunos.value = false;
   }
 }
+
+watch(selectedTurma, (val) => {
+  if (!val || val === "") {
+    alunosNotas.value = alunosNotasCompletos.value;
+  } else {
+    alunosNotas.value = alunosNotasCompletos.value.filter(
+      (a: any) => a.turma === val
+    );
+  }
+});
 
 function isNotaValida(v: number | null): boolean {
   return v != null && !isNaN(v) && v >= 0 && v <= 10;
