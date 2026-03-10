@@ -77,6 +77,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth.store";
 import { useToastStore } from "@/stores/toast.store";
 import { professorService } from "@/api/services/professor.service";
@@ -84,6 +85,7 @@ import StatsCard from "@/components/StatsCard.vue";
 import StudentCard from "@/components/StudentCard.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 
+const route = useRoute();
 const authStore = useAuthStore();
 const toast = useToastStore();
 const loadingAlunos = ref(false);
@@ -105,6 +107,41 @@ interface Aluno {
 const disciplinas = ref<SimpleItem[]>([]);
 const turmas = ref<SimpleItem[]>([]);
 const alunos = ref<Aluno[]>([]);
+
+const loadData = async () => {
+  if (!selectedDisciplina.value || !selectedTurma.value) return;
+
+  loadingAlunos.value = true;
+  try {
+    const disciplinaId = Number(selectedDisciplina.value);
+    const data = await professorService.getAlunosPorMateria(disciplinaId);
+    const list = Array.isArray(data) ? data : (data.alunos ?? []);
+    const filtered = list.filter(
+      (a: any) => (a.turma ?? a.serie ?? "") === selectedTurma.value
+    );
+    alunos.value = filtered.map((a: any, i: number) => ({
+      id: a.id ?? i + 1,
+      nome: a.nome ?? a.name ?? "",
+      matricula: a.matricula ?? "",
+      turma: a.turma ?? a.serie ?? "",
+    }));
+
+    let total = 0, soma = 0, pend = 0;
+    for (const a of filtered) {
+      total++;
+    }
+    stats.value = {
+      totalAlunos: total,
+      mediaTurma: "0.0",
+      pendencias: pend,
+    };
+  } catch {
+    alunos.value = [];
+    stats.value = { totalAlunos: 0, mediaTurma: "0.0", pendencias: 0 };
+  } finally {
+    loadingAlunos.value = false;
+  }
+};
 
 onMounted(async () => {
   try {
@@ -133,101 +170,21 @@ onMounted(async () => {
       nome,
     }));
 
-    if (data.materias && Array.isArray(data.materias)) {
-      const materias = data.materias as any[];
-      let total = 0,
-        soma = 0,
-        pend = 0;
-      for (const m of materias) {
-        total += m.totalAlunos ?? 0;
-        soma += m.mediaTurma ?? 0;
-      }
+    selectedDisciplina.value = (route.query.disciplinaId as string) || "";
+    selectedTurma.value = (route.query.turmaId as string) || "";
 
-      for (const d of disciplinas.value) {
-        try {
-          const alunosData = await professorService.getAlunosPorMateria(d.id);
-          const list = Array.isArray(alunosData)
-            ? alunosData
-            : (alunosData.alunos ?? []);
-          for (const a of list) {
-            const notas = a.notas ?? [];
-            const n1 =
-              notas.find((n: any) => n.periodoId === 1)?.nota ??
-              a.nota1 ??
-              null;
-            const n2 =
-              notas.find((n: any) => n.periodoId === 2)?.nota ??
-              a.nota2 ??
-              null;
-            if (n1 === null || n1 === "") pend++;
-            if (n2 === null || n2 === "") pend++;
-          }
-        } catch {}
-      }
-
-      stats.value = {
-        totalAlunos: total,
-        mediaTurma: materias.length
-          ? (soma / materias.length).toFixed(1)
-          : "0.0",
-        pendencias: pend,
-      };
+    if (selectedDisciplina.value && selectedTurma.value) {
+      await loadData();
     }
   } catch (err: any) {
     if (err.response?.status !== 401) toast.error("Erro ao carregar dashboard");
   }
 });
 
-watch(selectedDisciplina, async (val) => {
-  selectedTurma.value = "";
-  if (!val) {
-    alunos.value = [];
-    return;
-  }
-  loadingAlunos.value = true;
-  try {
-    const data = await professorService.getAlunosPorMateria(Number(val));
-    const list = Array.isArray(data) ? data : (data.alunos ?? []);
-    alunos.value = list.map((a: any, i: number) => ({
-      id: a.id ?? i + 1,
-      nome: a.nome ?? a.name ?? "",
-      matricula: a.matricula ?? "",
-      turma: a.turma ?? a.serie ?? "",
-    }));
-  } catch {
-    alunos.value = [];
-  } finally {
-    loadingAlunos.value = false;
-  }
-});
-
-watch(selectedTurma, async (val) => {
-  loadingAlunos.value = true;
-  try {
-    const disciplinaId = Number(selectedDisciplina.value);
-    if (!disciplinaId) {
-      alunos.value = [];
-      return;
-    }
-
-    const data = await professorService.getAlunosPorMateria(disciplinaId);
-    const list = Array.isArray(data) ? data : (data.alunos ?? []);
-    const filtered = val
-      ? list.filter(
-          (a: any) => (a.turma ?? a.serie ?? "") === val
-        )
-      : list;
-    alunos.value = filtered.map((a: any, i: number) => ({
-      id: a.id ?? i + 1,
-      nome: a.nome ?? a.name ?? "",
-      matricula: a.matricula ?? "",
-      turma: a.turma ?? a.serie ?? "",
-    }));
-  } catch {
-    alunos.value = [];
-  } finally {
-    loadingAlunos.value = false;
-  }
+watch([selectedDisciplina, selectedTurma], async () => {
+  alunos.value = [];
+  stats.value = { totalAlunos: 0, mediaTurma: "0.0", pendencias: 0 };
+  await loadData();
 });
 </script>
 
