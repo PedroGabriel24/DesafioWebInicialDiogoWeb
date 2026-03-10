@@ -238,7 +238,6 @@ onMounted(async () => {
 
     turmas.value = Array.from(serieSet).sort();
 
-    // Carregar alunos de todas as matérias para a lista
     for (const d of disciplinas.value) {
       try {
         const data = await professorService.getAlunosPorMateria(d.id);

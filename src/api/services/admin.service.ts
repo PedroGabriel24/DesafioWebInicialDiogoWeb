@@ -13,6 +13,7 @@ import type {
   SerieResponse,
   SerieMateriaRequest,
   SerieMateriaResponse,
+  ProfessorMateriasSeriesResponse,
 } from "@/api/types";
 
 export const adminService = {
@@ -138,6 +139,13 @@ export const adminService = {
   async deletarProfessorMateriaSerie(id: number): Promise<string> {
     const { data } = await api.delete<string>(
       `/admin/professor-materias-series/${id}`,
+    );
+    return data;
+  },
+
+  async listarProfessorMateriasSeries(): Promise<ProfessorMateriasSeriesResponse[]> {
+    const { data } = await api.get<ProfessorMateriasSeriesResponse[]>(
+      "/admin/professores-materias-series",
     );
     return data;
   },

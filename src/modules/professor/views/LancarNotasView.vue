@@ -284,7 +284,6 @@ async function toggleEdit(a: AlunoNota) {
     return;
   }
 
-  // Validação
   if (a.nota1 != null && !isNotaValida(a.nota1)) {
     toast.error(`Nota 1º SEM de ${a.nome} deve ser entre 0 e 10`);
     return;

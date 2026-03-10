@@ -51,6 +51,18 @@ export interface ProfessorMateriaSerieResponse {
   serieNome: string;
 }
 
+export interface ProfessorMateriasSeriesResponse {
+  professorId: number;
+  professorNome: string;
+  materias: {
+    id: number;
+    materiaId: number;
+    materiaNome: string;
+    serieId: number;
+    serieNome: string;
+  }[];
+}
+
 export interface AlunoSerieRequest {
   alunoId: number;
   serieId: number;

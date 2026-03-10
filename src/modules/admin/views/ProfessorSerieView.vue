@@ -73,6 +73,41 @@
         </p>
       </div>
     </div>
+
+    <div class="mt-lg" v-if="vinculos.length">
+      <h3 class="section-title">Vínculos existentes</h3>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>PROFESSOR</th>
+              <th>MATÉRIA</th>
+              <th>SÉRIE</th>
+              <th>AÇÃO</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="v in vinculos" :key="v.id">
+              <td>{{ v.id }}</td>
+              <td>{{ v.professorNome }}</td>
+              <td>{{ v.materiaNome }}</td>
+              <td>{{ v.serieNome }}</td>
+              <td>
+                <button
+                  class="btn btn-danger btn-sm"
+                  @click="deleteVinculo(v.id)"
+                >
+                  <span class="material-icons-outlined" style="font-size: 14px"
+                    >delete</span
+                  >
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -83,6 +118,7 @@ import { useToastStore } from "@/stores/toast.store";
 import type {
   UsersResponse,
   ProfessorMateriaSerieResponse,
+  ProfessorMateriasSeriesResponse,
   MateriaResponse,
   SerieResponse,
 } from "@/api/types";
@@ -96,6 +132,7 @@ const result = ref<ProfessorMateriaSerieResponse | null>(null);
 const professors = ref<UsersResponse[]>([]);
 const materias = ref<MateriaResponse[]>([]);
 const series = ref<SerieResponse[]>([]);
+const vinculos = ref<ProfessorMateriaSerieResponse[]>([]);
 const form = ref({
   professorId: null as number | null,
   materiaId: null as number | null,
@@ -108,20 +145,42 @@ const filteredProfessors = computed(() => {
 
 onMounted(async () => {
   try {
-    const [uList, mList, sList] = await Promise.all([
+    const [uList, mList, sList, vList] = await Promise.all([
       adminService.listarUsuarios(),
       adminService.listarMaterias(),
       adminService.listarSeries(),
+      adminService.listarProfessorMateriasSeries(),
     ]);
     professors.value = uList;
     materias.value = mList;
     series.value = sList;
+    vinculos.value = vList.flatMap(prof =>
+      prof.materias.map(materia => ({
+        id: materia.id, // id do vínculo agora vem dentro de cada materia
+        professorId: prof.professorId,
+        professorNome: prof.professorNome,
+        materiaId: materia.materiaId,
+        materiaNome: materia.materiaNome,
+        serieId: materia.serieId,
+        serieNome: materia.serieNome,
+      }))
+    );
   } catch {
     toast.error("Erro ao carregar dados do formulário");
   } finally {
     loadingData.value = false;
   }
 });
+
+async function deleteVinculo(id: number) {
+  try {
+    await adminService.deletarProfessorMateriaSerie(id);
+    vinculos.value = vinculos.value.filter((v) => v.id !== id);
+    toast.success("Vínculo removido!");
+  } catch {
+    toast.error("Erro ao remover vínculo");
+  }
+}
 
 async function handleSubmit() {
   if (!form.value.professorId || !form.value.materiaId || !form.value.serieId)
@@ -133,6 +192,7 @@ async function handleSubmit() {
       materiaId: form.value.materiaId,
       serieId: form.value.serieId,
     });
+    vinculos.value.push(result.value);
     toast.success("Professor vinculado com sucesso!");
   } catch (err: any) {
     toast.error(err.response?.data?.message || "Erro ao vincular professor");
@@ -140,6 +200,7 @@ async function handleSubmit() {
     saving.value = false;
   }
 }
+
 </script>
 
 <style scoped>
@@ -172,6 +233,11 @@ async function handleSubmit() {
 .result-card {
   max-width: 700px;
   border-left: 4px solid var(--success);
+}
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
 }
 
 @media (max-width: 768px) {
