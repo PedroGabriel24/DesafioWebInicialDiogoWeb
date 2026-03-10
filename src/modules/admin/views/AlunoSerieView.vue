@@ -56,6 +56,28 @@
         </p>
       </div>
     </div>
+
+    <div class="mt-lg" v-if="vinculos.length">
+      <h3 class="section-title">Vínculos existentes</h3>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>ALUNO</th>
+              <th>SÉRIE</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="v in vinculos" :key="v.id">
+              <td>{{ v.id }}</td>
+              <td>{{ v.alunoNome }}</td>
+              <td>{{ v.serieNome }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -77,6 +99,7 @@ const result = ref<AlunoSerieResponse | null>(null);
 
 const alunos = ref<UsersResponse[]>([]);
 const series = ref<SerieResponse[]>([]);
+const vinculos = ref<AlunoSerieResponse[]>([]);
 const form = ref({
   alunoId: null as number | null,
   serieId: null as number | null,
@@ -88,12 +111,14 @@ const filteredAlunos = computed(() => {
 
 onMounted(async () => {
   try {
-    const [uList, sList] = await Promise.all([
+    const [uList, sList, vList] = await Promise.all([
       adminService.listarUsuarios(),
       adminService.listarSeries(),
+      adminService.listarAlunoSeries(),
     ]);
     alunos.value = uList;
     series.value = sList;
+    vinculos.value = vList;
   } catch {
     toast.error("Erro ao carregar dados do formulário");
   } finally {
@@ -109,6 +134,7 @@ async function handleSubmit() {
       alunoId: form.value.alunoId,
       serieId: form.value.serieId,
     });
+    vinculos.value.push(result.value);
     toast.success("Aluno vinculado com sucesso!");
   } catch (err: any) {
     toast.error(err.response?.data?.message || "Erro ao vincular aluno");
@@ -148,6 +174,11 @@ async function handleSubmit() {
 .result-card {
   max-width: 600px;
   border-left: 4px solid var(--success);
+}
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
 }
 
 @media (max-width: 768px) {

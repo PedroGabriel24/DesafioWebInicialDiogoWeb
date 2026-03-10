@@ -167,4 +167,11 @@ export const adminService = {
     );
     return data;
   },
+
+  async listarAlunoSeries(): Promise<AlunoSerieResponse[]> {
+    const { data } = await api.get<AlunoSerieResponse[]>(
+      "/admin/aluno-serie",
+    );
+    return data;
+  },
 };
